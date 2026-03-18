@@ -1,16 +1,17 @@
 /**
  * popup.js
  *
- * Manages the enable/disable toggle in popup.html.
+ * Manages the enable/disable toggles in popup.html.
  *
  * State is persisted in chrome.storage.local so the setting survives
- * browser restarts. When the toggle changes the active YouTube tab is
+ * browser restarts. When a toggle changes the active YouTube tab is
  * notified via chrome.tabs.sendMessage so blocking starts/stops without
  * requiring a page reload (though a reload is still recommended for a
  * fully clean state).
  */
 
 const toggle = document.getElementById("toggle");
+const toggleSidebar = document.getElementById("toggle-sidebar");
 const statusText = document.getElementById("status-text");
 
 // ---------------------------------------------------------------------------
@@ -32,13 +33,13 @@ function updateStatusLabel(enabled) {
 }
 
 /**
- * Sends a SET_ENABLED message to the content script running in the
- * currently active YouTube tab (if any). Errors (e.g. no content script
- * loaded yet) are silently swallowed – the persisted storage value ensures
- * the correct state is applied on the next page load.
- * @param {boolean} enabled
+ * Sends a message to the content script running in the currently active
+ * YouTube tab (if any). Errors (e.g. no content script loaded yet) are
+ * silently swallowed – the persisted storage value ensures the correct state
+ * is applied on the next page load.
+ * @param {object} payload
  */
-function notifyActiveTab(enabled) {
+function notifyActiveTab(payload) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const tab = tabs[0];
     if (tab && tab.url) {
@@ -47,11 +48,7 @@ function notifyActiveTab(enabled) {
       try {
         const { hostname } = new URL(tab.url);
         if (hostname === "www.youtube.com" || hostname === "youtube.com") {
-          chrome.tabs.sendMessage(
-            tab.id,
-            { type: "SET_ENABLED", enabled },
-            () => void chrome.runtime.lastError
-          );
+          chrome.tabs.sendMessage(tab.id, payload, () => void chrome.runtime.lastError);
         }
       } catch {
         // Invalid URL – skip silently.
@@ -61,21 +58,28 @@ function notifyActiveTab(enabled) {
 }
 
 // ---------------------------------------------------------------------------
-// Initialise toggle from stored value
+// Initialise toggles from stored values
 // ---------------------------------------------------------------------------
 
-chrome.storage.local.get({ enabled: true }, ({ enabled }) => {
+chrome.storage.local.get({ enabled: true, blockSidebar: false }, ({ enabled, blockSidebar }) => {
   toggle.checked = enabled;
+  toggleSidebar.checked = blockSidebar;
   updateStatusLabel(enabled);
 });
 
 // ---------------------------------------------------------------------------
-// Persist and propagate changes when the user flips the toggle
+// Persist and propagate changes when the user flips a toggle
 // ---------------------------------------------------------------------------
 
 toggle.addEventListener("change", () => {
   const enabled = toggle.checked;
   chrome.storage.local.set({ enabled });
   updateStatusLabel(enabled);
-  notifyActiveTab(enabled);
+  notifyActiveTab({ type: "SET_ENABLED", enabled });
+});
+
+toggleSidebar.addEventListener("change", () => {
+  const blockSidebar = toggleSidebar.checked;
+  chrome.storage.local.set({ blockSidebar });
+  notifyActiveTab({ type: "SET_BLOCK_SIDEBAR", blockSidebar });
 });

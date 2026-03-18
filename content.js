@@ -29,6 +29,8 @@ const SHORTS_SELECTORS = [
   "ytd-reel-item-renderer",
   // Shorts player component (on /shorts/* pages)
   "ytd-shorts",
+  // Entire search-result section that wraps a Shorts shelf (prevents empty divider)
+  "ytd-item-section-renderer:has(ytd-reel-shelf-renderer)",
 ];
 
 /** Selectors that target recommendation widgets (but NOT regular video items) */
@@ -37,6 +39,12 @@ const RECOMMENDATION_SELECTORS = [
   ".ytp-endscreen-content",
   // Chips / topic filter bar on homepage (algorithm-driven)
   "ytd-feed-filter-chip-bar-renderer",
+];
+
+/** Selectors that target the right-sidebar "Up Next" recommendations on watch pages */
+const SIDEBAR_SELECTORS = [
+  // Secondary column on the watch page (contains "Up Next" / related videos)
+  "ytd-watch-flexy #secondary",
 ];
 
 // Combined selector list, built once for use in processAddedNode
@@ -75,6 +83,11 @@ function blockAll() {
   applySelectors(document, RECOMMENDATION_SELECTORS);
 }
 
+/** Applies sidebar blocking to the whole document. */
+function blockSidebarNow() {
+  applySelectors(document, SIDEBAR_SELECTORS);
+}
+
 /**
  * Redirects away from the YouTube Shorts player page (/shorts/*) to the
  * homepage, preventing users from scrolling through Shorts.
@@ -83,6 +96,24 @@ function redirectShortsPage() {
   if (window.location.pathname.startsWith("/shorts/")) {
     window.location.replace("https://www.youtube.com/");
   }
+}
+
+/**
+ * Injects a <style> element that fixes the layout clipping issue on the
+ * YouTube home feed when the Shorts shelf and chip-filter bar are hidden.
+ * Without this, the grid's overflow clipping can cut off the top of the
+ * first row of regular videos.
+ */
+function injectFixStyles() {
+  if (document.getElementById("shorts-blocker-fix")) return;
+  const style = document.createElement("style");
+  style.id = "shorts-blocker-fix";
+  style.textContent =
+    // Prevent browser scroll-anchoring from jumping when elements are hidden
+    "html { overflow-anchor: none; }\n" +
+    // Ensure the home-feed grid does not clip overflowing content
+    "ytd-rich-grid-renderer { overflow: visible !important; }";
+  (document.head || document.documentElement).appendChild(style);
 }
 
 // ---------------------------------------------------------------------------
@@ -97,7 +128,13 @@ function redirectShortsPage() {
 function processAddedNode(node) {
   if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-  for (const selector of ALL_SELECTORS) {
+  const selectorsToCheck = blockingEnabled
+    ? [...ALL_SELECTORS, ...(blockSidebarEnabled ? SIDEBAR_SELECTORS : [])]
+    : blockSidebarEnabled
+    ? SIDEBAR_SELECTORS
+    : [];
+
+  for (const selector of selectorsToCheck) {
     // Hide the node itself if it matches
     if (node.matches && node.matches(selector)) {
       hideElement(node);
@@ -116,11 +153,31 @@ const observer = new MutationObserver((mutations) => {
 });
 
 // ---------------------------------------------------------------------------
-// Initialisation – honour the user's toggle setting from chrome.storage
+// Initialisation – honour the user's toggle settings from chrome.storage
 // ---------------------------------------------------------------------------
 
 /** In-memory cache of the current enabled state. Default true until loaded. */
 let blockingEnabled = true;
+
+/** In-memory cache of the sidebar-blocking state. Default false until loaded. */
+let blockSidebarEnabled = false;
+
+/**
+ * (Re-)starts the observer when at least one blocking feature is active.
+ * Safe to call multiple times – observing an already-observed root is a no-op.
+ */
+function ensureObserving() {
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+/**
+ * Stops the observer only when ALL blocking features are disabled.
+ */
+function maybeStopObserving() {
+  if (!blockingEnabled && !blockSidebarEnabled) {
+    observer.disconnect();
+  }
+}
 
 /**
  * Starts the blocker: redirects Shorts pages, runs an initial pass, and
@@ -130,7 +187,7 @@ function startBlocking() {
   blockingEnabled = true;
   redirectShortsPage();
   blockAll();
-  observer.observe(document.body, { childList: true, subtree: true });
+  ensureObserving();
 }
 
 /**
@@ -139,20 +196,48 @@ function startBlocking() {
  */
 function stopBlocking() {
   blockingEnabled = false;
-  observer.disconnect();
+  maybeStopObserving();
+}
+
+/** Activates sidebar blocking and runs an immediate pass. */
+function startSidebarBlocking() {
+  blockSidebarEnabled = true;
+  blockSidebarNow();
+  ensureObserving();
+}
+
+/** Deactivates sidebar blocking (hidden elements remain until page reload). */
+function stopSidebarBlocking() {
+  blockSidebarEnabled = false;
+  maybeStopObserving();
 }
 
 /**
- * Reads the "enabled" flag from chrome.storage.local and starts or stops
- * blocking accordingly. Defaults to enabled if no value is stored yet.
+ * Reads the "enabled" and "blockSidebar" flags from chrome.storage.local and
+ * starts or stops blocking accordingly. Defaults to enabled/false if no value
+ * is stored yet.
  */
 function initFromStorage() {
-  chrome.storage.local.get({ enabled: true }, ({ enabled }) => {
-    blockingEnabled = enabled;
-    if (enabled) {
-      startBlocking();
+  chrome.storage.local.get(
+    { enabled: true, blockSidebar: false },
+    ({ enabled, blockSidebar }) => {
+      blockingEnabled = enabled;
+      blockSidebarEnabled = blockSidebar;
+
+      if (enabled) {
+        injectFixStyles();
+        redirectShortsPage();
+        blockAll();
+      }
+      if (blockSidebar) {
+        injectFixStyles();
+        blockSidebarNow();
+      }
+      if (enabled || blockSidebar) {
+        ensureObserving();
+      }
     }
-  });
+  );
 }
 
 // Listen for toggle messages sent by popup.js
@@ -162,6 +247,13 @@ chrome.runtime.onMessage.addListener((message) => {
       startBlocking();
     } else {
       stopBlocking();
+    }
+  }
+  if (message.type === "SET_BLOCK_SIDEBAR") {
+    if (message.blockSidebar) {
+      startSidebarBlocking();
+    } else {
+      stopSidebarBlocking();
     }
   }
 });
@@ -175,5 +267,8 @@ document.addEventListener("yt-navigate-finish", () => {
   if (blockingEnabled) {
     redirectShortsPage();
     blockAll();
+  }
+  if (blockSidebarEnabled) {
+    blockSidebarNow();
   }
 });
