@@ -22,8 +22,9 @@ const SHORTS_SELECTORS = [
   // Shorts entry in the left-side guide / mini-guide
   "ytd-guide-entry-renderer a[title='Shorts']",
   "ytd-mini-guide-entry-renderer a[title='Shorts']",
-  // Shorts shelf in search results and other feeds
+  // Shorts shelf in search results and other feeds (legacy and newer element names)
   "ytd-reel-shelf-renderer",
+  "ytd-shorts-shelf-renderer",
   // Individual short video items
   "ytd-reel-item-renderer",
   // Shorts player component (on /shorts/* pages)
@@ -32,8 +33,6 @@ const SHORTS_SELECTORS = [
 
 /** Selectors that target recommendation widgets (but NOT regular video items) */
 const RECOMMENDATION_SELECTORS = [
-  // "Up next" / sidebar recommendations panel on watch page
-  "#secondary #related",
   // End-screen recommendation cards shown at video end
   ".ytp-endscreen-content",
   // Chips / topic filter bar on homepage (algorithm-driven)
