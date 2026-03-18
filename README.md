@@ -1,6 +1,6 @@
 # Shorts Blocker
 
-A Chrome extension (Manifest V3) that keeps YouTube distraction-free by:
+A browser extension (Chrome and Safari, Manifest V3) that keeps YouTube distraction-free by:
 
 - **Blocking YouTube Shorts** – removes the Shorts shelf, navigation entry, and individual Short items.
 - **Hiding recommended videos** – hides the sidebar "Up Next" panel, end-screen cards, and homepage recommendation rows.
@@ -13,10 +13,10 @@ A Chrome extension (Manifest V3) that keeps YouTube distraction-free by:
 
 ```
 shortsBlocker/
-├── manifest.json   # Chrome Manifest V3 config
+├── manifest.json   # Manifest V3 config (Chrome & Safari)
 ├── content.js      # DOM-blocking logic (MutationObserver)
 ├── popup.html      # Toggle UI
-└── popup.js        # Toggle state via chrome.storage
+└── popup.js        # Toggle state via storage API
 ```
 
 ---
@@ -33,6 +33,23 @@ shortsBlocker/
 
 ---
 
+## How to load the extension in Safari (unpacked)
+
+Safari requires extensions to be packaged as a Safari Web Extension. You can convert this extension using Xcode's built-in migration tool:
+
+1. **Install Xcode** (version 12 or later) from the Mac App Store.
+2. **Run the conversion tool** from your terminal, replacing `<output-dir>` with your chosen output directory:
+   ```bash
+   xcrun safari-web-extension-converter /path/to/shortsBlocker --project-location <output-dir>
+   ```
+3. Xcode will open the generated project automatically. Click **Run** (▶) to build and install the extension.
+4. In Safari, open **Settings → Extensions**, find **Shorts Blocker**, and enable it.
+5. Grant access to `youtube.com` when prompted.
+
+> **Note:** Safari 15.4 or later (macOS 12.3+, iOS 15.4+) is required for Manifest V3 support.
+
+---
+
 ## Usage
 
 - Click the extension icon to open the popup.
@@ -46,9 +63,9 @@ shortsBlocker/
 | File | Responsibility |
 |---|---|
 | `manifest.json` | Declares the extension, permissions (`storage`), and injects `content.js` on all YouTube pages. |
-| `content.js` | Defines CSS selectors for Shorts and recommendation elements, hides them with `display:none`, and watches for dynamically added nodes via `MutationObserver`. Listens for `yt-navigate-finish` to re-apply blocking after SPA navigations. |
+| `content.js` | Defines CSS selectors for Shorts and recommendation elements, hides them with `display:none`, and watches for dynamically added nodes via `MutationObserver`. Listens for `yt-navigate-finish` to re-apply blocking after SPA navigations. Uses a cross-browser API shim (`browser` namespace on Safari/Firefox, `chrome` on Chrome). |
 | `popup.html` | Renders a minimal toggle UI (no external dependencies). |
-| `popup.js` | Reads / writes the `enabled` flag in `chrome.storage.local` and sends a `SET_ENABLED` message to the active tab's content script. |
+| `popup.js` | Reads / writes the `enabled` flag in `storage.local` and sends a `SET_ENABLED` message to the active tab's content script. Uses a cross-browser API shim for compatibility with both Chrome and Safari. |
 
 ---
 

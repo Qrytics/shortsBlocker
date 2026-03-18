@@ -6,8 +6,16 @@
  * watches for new nodes added by YouTube's SPA router so blocking stays
  * active after navigation.
  *
- * Blocking can be toggled from popup.html via chrome.storage.local.
+ * Blocking can be toggled from popup.html via storage.local.
  */
+
+// ---------------------------------------------------------------------------
+// Cross-browser API compatibility shim
+// Prefer the W3C `browser` namespace (Firefox, Safari); fall back to `chrome`.
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line no-undef
+const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 // ---------------------------------------------------------------------------
 // CSS selectors for elements we want to remove
@@ -157,7 +165,7 @@ const observer = new MutationObserver((mutations) => {
 });
 
 // ---------------------------------------------------------------------------
-// Initialisation – honour the user's toggle settings from chrome.storage
+// Initialisation – honour the user's toggle settings from storage
 // ---------------------------------------------------------------------------
 
 /** In-memory cache of the current enabled state. Default true until loaded. */
@@ -217,12 +225,12 @@ function stopSidebarBlocking() {
 }
 
 /**
- * Reads the "enabled" and "blockSidebar" flags from chrome.storage.local and
+ * Reads the "enabled" and "blockSidebar" flags from storage.local and
  * starts or stops blocking accordingly. Defaults to enabled/false if no value
  * is stored yet.
  */
 function initFromStorage() {
-  chrome.storage.local.get(
+  browserAPI.storage.local.get(
     { enabled: true, blockSidebar: false },
     ({ enabled, blockSidebar }) => {
       blockingEnabled = enabled;
@@ -245,7 +253,7 @@ function initFromStorage() {
 }
 
 // Listen for toggle messages sent by popup.js
-chrome.runtime.onMessage.addListener((message) => {
+browserAPI.runtime.onMessage.addListener((message) => {
   if (message.type === "SET_ENABLED") {
     if (message.enabled) {
       startBlocking();
