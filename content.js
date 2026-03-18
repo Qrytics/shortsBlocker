@@ -19,9 +19,9 @@ const SHORTS_SELECTORS = [
   "ytd-rich-shelf-renderer[is-shorts]",
   // Fallback: any shelf whose title contains "Shorts"
   "ytd-rich-shelf-renderer[shelf-style='shorts']",
-  // Shorts entry in the left-side guide / mini-guide
-  "ytd-guide-entry-renderer a[title='Shorts']",
-  "ytd-mini-guide-entry-renderer a[title='Shorts']",
+  // Shorts entry in the left-side guide / mini-guide (target the whole row, not just the link)
+  "ytd-guide-entry-renderer:has(a[title='Shorts'])",
+  "ytd-mini-guide-entry-renderer:has(a[title='Shorts'])",
   // Shorts shelf in search results and other feeds (legacy and newer element names)
   "ytd-reel-shelf-renderer",
   "ytd-shorts-shelf-renderer",
@@ -29,8 +29,12 @@ const SHORTS_SELECTORS = [
   "ytd-reel-item-renderer",
   // Shorts player component (on /shorts/* pages)
   "ytd-shorts",
+  // Individual video results in search / feeds that are actually Shorts
+  "ytd-video-renderer:has(a[href*='/shorts/'])",
   // Entire search-result section that wraps a Shorts shelf (prevents empty divider)
   "ytd-item-section-renderer:has(ytd-reel-shelf-renderer)",
+  // Entire search-result section that wraps an individual Short (prevents blank space)
+  "ytd-item-section-renderer:has(ytd-video-renderer a[href*='/shorts/'])",
 ];
 
 /** Selectors that target recommendation widgets (but NOT regular video items) */
