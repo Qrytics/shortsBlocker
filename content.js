@@ -1,9 +1,10 @@
 /**
  * content.js
  *
- * Injected on every YouTube page. Hides Shorts and recommended-video
- * elements using CSS selectors. A MutationObserver watches for new nodes
- * added by YouTube's SPA router so blocking stays active after navigation.
+ * Injected on every YouTube page. Hides Shorts-related elements using CSS
+ * selectors and redirects away from /shorts/* pages. A MutationObserver
+ * watches for new nodes added by YouTube's SPA router so blocking stays
+ * active after navigation.
  *
  * Blocking can be toggled from popup.html via chrome.storage.local.
  */
@@ -21,24 +22,22 @@ const SHORTS_SELECTORS = [
   // Shorts entry in the left-side guide / mini-guide
   "ytd-guide-entry-renderer a[title='Shorts']",
   "ytd-mini-guide-entry-renderer a[title='Shorts']",
-  // Shorts items inside search results / shelves
+  // Shorts shelf in search results and other feeds
   "ytd-reel-shelf-renderer",
   // Individual short video items
   "ytd-reel-item-renderer",
+  // Shorts player component (on /shorts/* pages)
+  "ytd-shorts",
 ];
 
-/** Selectors that target recommendation widgets */
+/** Selectors that target recommendation widgets (but NOT regular video items) */
 const RECOMMENDATION_SELECTORS = [
-  // "Up next" / sidebar recommendations on watch page
+  // "Up next" / sidebar recommendations panel on watch page
   "#secondary #related",
-  // Individual video items inside the related panel
-  "ytd-compact-video-renderer",
   // End-screen recommendation cards shown at video end
   ".ytp-endscreen-content",
   // Chips / topic filter bar on homepage (algorithm-driven)
   "ytd-feed-filter-chip-bar-renderer",
-  // Recommended rows / cards on homepage
-  "ytd-rich-item-renderer",
 ];
 
 // Combined selector list, built once for use in processAddedNode
@@ -75,6 +74,16 @@ function applySelectors(root, selectors) {
 function blockAll() {
   applySelectors(document, SHORTS_SELECTORS);
   applySelectors(document, RECOMMENDATION_SELECTORS);
+}
+
+/**
+ * Redirects away from the YouTube Shorts player page (/shorts/*) to the
+ * homepage, preventing users from scrolling through Shorts.
+ */
+function redirectShortsPage() {
+  if (window.location.pathname.startsWith("/shorts/")) {
+    window.location.replace("https://www.youtube.com/");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -115,10 +124,12 @@ const observer = new MutationObserver((mutations) => {
 let blockingEnabled = true;
 
 /**
- * Starts the blocker: runs an initial pass and attaches the MutationObserver.
+ * Starts the blocker: redirects Shorts pages, runs an initial pass, and
+ * attaches the MutationObserver.
  */
 function startBlocking() {
   blockingEnabled = true;
+  redirectShortsPage();
   blockAll();
   observer.observe(document.body, { childList: true, subtree: true });
 }
@@ -162,5 +173,8 @@ initFromStorage();
 // YouTube is a SPA – re-run a full block pass whenever the URL changes
 // (yt-navigate-finish fires after each soft navigation)
 document.addEventListener("yt-navigate-finish", () => {
-  if (blockingEnabled) blockAll();
+  if (blockingEnabled) {
+    redirectShortsPage();
+    blockAll();
+  }
 });

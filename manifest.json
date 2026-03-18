@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Shorts Blocker",
   "version": "1.0.0",
-  "description": "Blocks YouTube Shorts and removes recommended videos to help you stay focused.",
+  "description": "Blocks YouTube Shorts from appearing in feeds, search results, and the guide, and redirects the Shorts player page back to the homepage.",
   "permissions": ["storage"],
   "host_permissions": ["*://*.youtube.com/*"],
   "content_scripts": [
