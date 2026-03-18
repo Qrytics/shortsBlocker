@@ -119,6 +119,15 @@
       }
 
       /* ------------------------------------------------------------------ */
+      /* Divider between toggle rows                                         */
+      /* ------------------------------------------------------------------ */
+      .divider {
+        height: 1px;
+        background: #f0f0f0;
+        margin: 0 16px;
+      }
+
+      /* ------------------------------------------------------------------ */
       /* Status footer                                                        */
       /* ------------------------------------------------------------------ */
       footer {
@@ -172,6 +181,19 @@
       </div>
       <label class="switch" aria-label="Enable blocker">
         <input type="checkbox" id="toggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="toggle-row">
+      <div class="toggle-label">
+        <span>Block Sidebar Recommendations</span>
+        <small>Hides "Up Next" on watch pages</small>
+      </div>
+      <label class="switch" aria-label="Block sidebar recommendations">
+        <input type="checkbox" id="toggle-sidebar" />
         <span class="slider"></span>
       </label>
     </div>
